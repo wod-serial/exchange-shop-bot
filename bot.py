@@ -190,9 +190,7 @@ async def handle_final(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if query.data == "new_exchange":
         context.user_data.clear()
         await query.edit_message_text(
-            "Добро пожаловать в обменный пункт «Щедрый Хотэй», расположенный в СТЗ.
-
-Что хотите купить?",
+            "Добро пожаловать в обменный пункт «Щедрый Хотэй», расположенный в СТЗ.\n\nЧто хотите купить?",
             reply_markup=make_currency_keyboard(),
         )
         return CHOOSE_BUY
