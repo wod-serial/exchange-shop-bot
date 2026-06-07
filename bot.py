@@ -1,5 +1,5 @@
-import logging
 import os
+import logging
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
     Application,
@@ -11,10 +11,6 @@ from telegram.ext import (
     ConversationHandler,
 )
 
-# --- Настройки логирования ---
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
-
 BOT_TOKEN = os.getenv("TOKEN") 
 
 if BOT_TOKEN is not None:
@@ -22,6 +18,10 @@ if BOT_TOKEN is not None:
 else:
     print(f"token is NOT set")
     raise EnvironmentError(f"Required environment variable token is not set.")
+
+# --- Настройки логирования ---
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 # --- Валюты и коэффициенты ---
 SELL_COEFFICIENTS = {
@@ -54,8 +54,36 @@ BUY_COEFFICIENTS = {
 
 CURRENCIES = list(SELL_COEFFICIENTS.keys())
 
+# --- Склонения валют (1, 2-4, 5+) ---
+CURRENCY_FORMS = {
+    "Золото АД":         ("Золото АД",        "Золота АД",        "Золота АД"),
+    "Обол":              ("Обол",              "Обола",            "Оболов"),
+    "Красный талон":     ("Красный талон",     "Красных талона",   "Красных талонов"),
+    "Пеггат":            ("Пеггат",            "Пеггата",          "Пеггатов"),
+    "Золотая корона":    ("Золотая корона",    "Золотых короны",   "Золотых корон"),
+    "Серебряная корона": ("Серебряная корона", "Серебряных короны","Серебряных корон"),
+    "Топаз":             ("Топаз",             "Топаза",           "Топазов"),
+    "Гранат":            ("Гранат",            "Граната",          "Гранатов"),
+    "Опал":              ("Опал",              "Опала",            "Опалов"),
+    "Аметист":           ("Аметист",           "Аметиста",         "Аметистов"),
+    "Берилл":            ("Берилл",            "Берилла",          "Бериллов"),
+}
+
+def decline(amount, currency):
+    """Возвращает правильную форму названия валюты для заданного числа."""
+    forms = CURRENCY_FORMS[currency]
+    if amount % 100 in range(11, 20):
+        return forms[2]
+    rem = amount % 10
+    if rem == 1:
+        return forms[0]
+    elif rem in (2, 3, 4):
+        return forms[1]
+    else:
+        return forms[2]
+
 # --- Шаги диалога ---
-CHOOSE_BUY, ENTER_AMOUNT, CHOOSE_PAY = range(3)
+CHOOSE_BUY, ENTER_AMOUNT, CHOOSE_PAY, FINAL = range(4)
 
 
 def make_currency_keyboard(exclude=None):
@@ -92,42 +120,32 @@ async def choose_buy_currency(update: Update, context: ContextTypes.DEFAULT_TYPE
     currency = query.data
     context.user_data["buy_currency"] = currency
 
+    amount_keyboard = InlineKeyboardMarkup([[
+        InlineKeyboardButton("1", callback_data="amount_1"),
+        InlineKeyboardButton("2", callback_data="amount_2"),
+        InlineKeyboardButton("3", callback_data="amount_3"),
+        InlineKeyboardButton("4", callback_data="amount_4"),
+        InlineKeyboardButton("5", callback_data="amount_5"),
+    ]])
     await query.edit_message_text(
-        f"Вы выбрали: *{currency}*\n\nСколько хотите купить? Введите число (не более 5 единиц валюты за один обмен):",
+        f"Вы выбрали: *{currency}*\n\nСколько хотите купить?",
         parse_mode="Markdown",
+        reply_markup=amount_keyboard,
     )
     return ENTER_AMOUNT
 
 
 async def enter_amount(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Игрок ввёл количество."""
-    text = update.message.text.strip().replace(",", ".")
+    """Игрок нажал кнопку с количеством."""
+    query = update.callback_query
+    await query.answer()
 
-    try:
-        amount = float(text)
-    except ValueError:
-        await update.message.reply_text(
-            "Укажите количество цифрами, например: 6"
-        )
-        return ENTER_AMOUNT
-
-    if amount <= 0:
-        await update.message.reply_text(
-            "Количество должно быть больше нуля."
-        )
-        return ENTER_AMOUNT
-
-    if amount > 5:
-        await update.message.reply_text(
-            "За один обмен можно купить не более 5 единиц валюты."
-        )
-        return ENTER_AMOUNT
-
+    amount = int(query.data.split("_")[1])
     context.user_data["amount"] = amount
     buy_currency = context.user_data["buy_currency"]
 
-    await update.message.reply_text(
-        f"Покупаем *{amount:g} {buy_currency}*.\n\nКакой валютой будете платить?",
+    await query.edit_message_text(
+        f"Покупаем *{amount} {decline(amount, buy_currency)}*.\n\nКакой валютой будете платить?",
         parse_mode="Markdown",
         reply_markup=make_currency_keyboard(exclude=buy_currency),
     )
@@ -151,17 +169,38 @@ async def choose_pay_currency(update: Update, context: ContextTypes.DEFAULT_TYPE
     result = math.ceil(result)
     result_str = str(result)
 
+    final_keyboard = InlineKeyboardMarkup([[
+        InlineKeyboardButton("Начать новый обмен", callback_data="new_exchange"),
+        InlineKeyboardButton("Завершить", callback_data="finish"),
+    ]])
     await query.edit_message_text(
-        f"Для того, чтобы купить *{amount:g} {buy_currency}* — заплатите *{result_str} {pay_currency}*!",
+        f"Для того, чтобы купить *{amount} {decline(amount, buy_currency)}* — заплатите *{result_str} {decline(result, pay_currency)}*!\n\nВы можете написать об этом личное сообщение деду Егору (@iskuzmin) и произвести интересующий вас обмен",
         parse_mode="Markdown",
+        reply_markup=final_keyboard,
     )
 
-    # Предлагаем начать заново
-    await query.message.reply_text(
-        "Вы можете написать об этом личное сообщение деду Егору (@iskuzmin) и произвести интересующий вас обмен\n\nХотите рассчитать ещё один обмен? Напишите /start",
-    )
+    return FINAL
 
-    return ConversationHandler.END
+
+async def handle_final(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Обработка кнопок на финальном экране."""
+    query = update.callback_query
+    await query.answer()
+
+    if query.data == "new_exchange":
+        context.user_data.clear()
+        await query.edit_message_text(
+            "Добро пожаловать в обменный пункт «Щедрый Хотэй», расположенный в СТЗ.
+
+Что хотите купить?",
+            reply_markup=make_currency_keyboard(),
+        )
+        return CHOOSE_BUY
+    else:
+        await query.edit_message_text(
+            "Спасибо за визит в обменный пункт «Щедрый Хотэй»! До свидания."
+        )
+        return ConversationHandler.END
 
 
 async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -180,8 +219,9 @@ async def main():
         entry_points=[CommandHandler("start", start)],
         states={
             CHOOSE_BUY: [CallbackQueryHandler(choose_buy_currency)],
-            ENTER_AMOUNT: [MessageHandler(filters.TEXT & ~filters.COMMAND, enter_amount)],
+            ENTER_AMOUNT: [CallbackQueryHandler(enter_amount, pattern="^amount_")],
             CHOOSE_PAY: [CallbackQueryHandler(choose_pay_currency)],
+            FINAL: [CallbackQueryHandler(handle_final, pattern="^(new_exchange|finish)$")],
         },
         fallbacks=[CommandHandler("cancel", cancel), CommandHandler("start", start)],
     )
