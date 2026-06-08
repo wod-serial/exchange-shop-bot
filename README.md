@@ -1,5 +1,10 @@
 # Инструкция по запуску бота СТЗ
 
+[![PublishDocker](https://github.com/wod-serial/exchange-shop-bot/actions/workflows/release.yml/badge.svg)](https://github.com/wod-serial/exchange-shop-bot/actions/workflows/release.yml)
+
+[![Python Syntax and Unit Tests](https://github.com/wod-serial/exchange-shop-bot/actions/workflows/test.yml/badge.svg)](https://github.com/wod-serial/exchange-shop-bot/actions/workflows/test.yml)
+
+
 ## Шаг 1. Получить токен бота
 
 1. Открой Telegram, найди **@BotFather**
