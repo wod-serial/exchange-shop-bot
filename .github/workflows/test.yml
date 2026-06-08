@@ -1,0 +1,45 @@
+name: Python Syntax and Unit Tests
+
+# Trigger the workflow on pushes or pull requests to the main branch
+on: push
+
+jobs:
+  test-python:
+    # Use the official GitHub-hosted Ubuntu runner
+    runs-on: ubuntu-latest
+    
+    strategy:
+      # Run tests in parallel across multiple Python versions
+      matrix:
+        python-version: ["3.13"]
+
+    steps:
+    # Step 1: Check out the repository code
+    - name: Checkout Code
+      uses: actions/checkout@v4
+
+    # Step 2: Set up the specific Python runtime version
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ matrix.python-version }}
+        # Enables automatic caching for faster subsequent runs
+        cache: 'pip' 
+
+    # Step 3: Install testing tools and project dependencies
+    - name: Install Dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install flake8 pytest
+        if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+
+    # Step 4: Stop the build immediately if there are syntax errors
+    - name: Lint Syntax and Critical Errors
+      run: |
+        # E9, F63, F7, and F82 check for syntax errors and undefined variables
+        flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+
+    # Step 5: Run your project unit tests
+    #- name: Run Tests with Pytest
+    #  run: |
+    #    pytest
