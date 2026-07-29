@@ -1,4 +1,3 @@
-import os
 import logging
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
@@ -11,44 +10,35 @@ from telegram.ext import (
     ConversationHandler,
 )
 
-BOT_TOKEN = os.getenv("TOKEN") 
-
-if BOT_TOKEN is not None:
-    print(f"token is set")
-else:
-    print(f"token is NOT set")
-    raise EnvironmentError(f"Required environment variable token is not set.")
-
 # --- Настройки логирования ---
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+# --- Токен бота (вставь свой) ---
+BOT_TOKEN = "8706115393:AAGIio69ILO-nU0om2g0FMF_iKriQd_a_tI"
+
 # --- Валюты и коэффициенты ---
 SELL_COEFFICIENTS = {
-    "Золото АД":        0.3,
-    "Обол":             0.2,
+    "Золото АД":        0.1,
+    "Обол":             0.5,
     "Красный талон":    0.3,
-    "Пеггат":           0.6,
-    "Золотая корона":   0.6,
-    "Серебряная корона":0.1,
-    "Топаз":            0.3,
+    "Пеггат":           0.5,
+    "Топаз":            0.2,
     "Гранат":           0.3,
-    "Опал":             0.3,
-    "Аметист":          0.2,
+    "Опал":             0.2,
+    "Аметист":          0.3,
     "Берилл":           0.2,
 }
 
 BUY_COEFFICIENTS = {
     "Золото АД":        0.1,
-    "Обол":             0.1,
-    "Красный талон":    0.2,
+    "Обол":             0.3,
+    "Красный талон":    0.3,
     "Пеггат":           0.4,
-    "Золотая корона":   0.4,
-    "Серебряная корона":0.1,
-    "Топаз":            0.2,
+    "Топаз":            0.1,
     "Гранат":           0.2,
-    "Опал":             0.2,
-    "Аметист":          0.1,
+    "Опал":             0.1,
+    "Аметист":          0.2,
     "Берилл":           0.1,
 }
 
@@ -60,8 +50,6 @@ CURRENCY_FORMS = {
     "Обол":              ("Обол",              "Обола",            "Оболов"),
     "Красный талон":     ("Красный талон",     "Красных талона",   "Красных талонов"),
     "Пеггат":            ("Пеггат",            "Пеггата",          "Пеггатов"),
-    "Золотая корона":    ("Золотая корона",    "Золотых короны",   "Золотых корон"),
-    "Серебряная корона": ("Серебряная корона", "Серебряных короны","Серебряных корон"),
     "Топаз":             ("Топаз",             "Топаза",           "Топазов"),
     "Гранат":            ("Гранат",            "Граната",          "Гранатов"),
     "Опал":              ("Опал",              "Опала",            "Опалов"),
@@ -190,7 +178,9 @@ async def handle_final(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if query.data == "new_exchange":
         context.user_data.clear()
         await query.edit_message_text(
-            "Добро пожаловать в обменный пункт «Щедрый Хотэй», расположенный в СТЗ.\n\nЧто хотите купить?",
+            "Добро пожаловать в обменный пункт «Щедрый Хотэй», расположенный в СТЗ.
+
+Что хотите купить?",
             reply_markup=make_currency_keyboard(),
         )
         return CHOOSE_BUY
